@@ -1,0 +1,17 @@
+# Release artifacts are never committed. Only text extractions are tracked.
+build/
+*.tgz
+*.tar.gz
+
+# extracted executables / packages
+package/
+claude
+*.bin
+
+# scratch
+*.tmp
+*.log
+.DS_Store
+
+# Held codename evidence (private, never published)
+_held/

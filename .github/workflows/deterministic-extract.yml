@@ -1,0 +1,118 @@
+name: deterministic-extract
+
+# Deterministically document a Claude Code release and, if anything changed,
+# open a pull request in THIS repository. No external push, no secrets.
+
+on:
+  schedule:
+    # Weekly, Mondays 06:00 UTC. Cheap; releases are not that frequent.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version to document (blank = latest dist-tag)"
+        required: false
+        type: string
+
+permissions:
+  contents: write        # create a branch
+  pull-requests: write   # open the PR
+
+concurrency:
+  group: deterministic-extract
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    env:
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y binutils
+
+      - name: Resolve target version
+        id: resolve
+        run: |
+          set -euo pipefail
+          v="${{ inputs.version }}"
+          if [ -z "$v" ]; then
+            v="$(npm view @anthropic-ai/claude-code@latest version)"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          # newest already-tracked version dir, for the diff base
+          prev="$(ls -1 extractions | sed 's/^v//' | sort -V | tail -1)"
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+          echo "Target: $v  (prev tracked: $prev)"
+
+      - name: Skip if already documented
+        id: gate
+        run: |
+          set -euo pipefail
+          v="${{ steps.resolve.outputs.version }}"
+          if [ -d "extractions/v$v" ]; then
+            echo "already_done=true" >> "$GITHUB_OUTPUT"
+            echo "v$v already documented; nothing to do."
+          else
+            echo "already_done=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch release (records sha512; artifact not committed)
+        if: steps.gate.outputs.already_done == 'false'
+        run: scripts/fetch-release.sh "${{ steps.resolve.outputs.version }}"
+
+      - name: Unpack and locate the release executable
+        if: steps.gate.outputs.already_done == 'false'
+        id: unpack
+        run: |
+          set -euo pipefail
+          v="${{ steps.resolve.outputs.version }}"
+          tar -xzf "build/$v"/*.tgz -C "build/$v"
+          # The packed npm artifact unpacks under build/<v>/package/.
+          # Find the largest regular file (the compiled executable / cli).
+          artifact="$(find "build/$v/package" -type f -printf '%s %p\n' \
+            | sort -nr | head -1 | cut -d' ' -f2-)"
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+          echo "Using artifact: $artifact"
+
+      - name: Extract
+        if: steps.gate.outputs.already_done == 'false'
+        run: scripts/extract-binary.sh "${{ steps.unpack.outputs.artifact }}" "${{ steps.resolve.outputs.version }}"
+
+      - name: Compare against previous
+        if: steps.gate.outputs.already_done == 'false'
+        run: scripts/compare-release.sh "${{ steps.resolve.outputs.prev }}" "${{ steps.resolve.outputs.version }}"
+
+      - name: Validate (blocks on any gate failure)
+        if: steps.gate.outputs.already_done == 'false'
+        run: scripts/validate-extraction.sh "${{ steps.resolve.outputs.version }}"
+
+      - name: Open pull request
+        if: steps.gate.outputs.already_done == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          # default GITHUB_TOKEN: same-repo branch + PR only, no external push.
+          branch: "extract/v${{ steps.resolve.outputs.version }}"
+          title: "Document v${{ steps.resolve.outputs.version }}"
+          commit-message: "Add env var extraction for v${{ steps.resolve.outputs.version }}"
+          body: |
+            Automated deterministic extraction for
+            `@anthropic-ai/claude-code@${{ steps.resolve.outputs.version }}`,
+            diffed against `v${{ steps.resolve.outputs.prev }}`.
+
+            All validation gates passed (locale, secrets, codenames, counts,
+            size). The release artifact is not committed; only text extractions
+            are included.
+
+            Review `extractions/v${{ steps.resolve.outputs.version }}/SUMMARY.md`
+            and check `FLAGGED.md` if any items were held.
+          add-paths: |
+            extractions/
+            FLAGGED.md
+            README.md

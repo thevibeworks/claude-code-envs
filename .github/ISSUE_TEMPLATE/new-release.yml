@@ -1,0 +1,26 @@
+name: New release to document
+description: A new Claude Code version is out and should be added.
+title: "Document v<version>"
+labels: ["new-release"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Exact npm version, e.g. 2.1.171
+      placeholder: "2.1.171"
+    validations:
+      required: true
+  - type: input
+    id: prev
+    attributes:
+      label: Previous tracked version
+      description: The version to diff against.
+      placeholder: "2.1.170"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything notable (new providers, model lines, flags). Optional.
