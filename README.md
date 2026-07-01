@@ -11,7 +11,7 @@ models, providers, transports, feature flags, and runtime behavior. This
 repository documents which variables each published release reads, and how that
 set changes from version to version.
 
-The latest documented release, **v2.1.170**, reads **640** environment
+The latest documented release, **v2.1.197**, reads **655** environment
 variables.
 
 ## What this is
@@ -46,7 +46,7 @@ scripts/
 FLAGGED.md                        items held out of public artifacts and why
 ```
 
-Versions tracked: `v2.1.121`, `v2.1.139`, `v2.1.170`.
+Versions tracked: `v2.1.121`, `v2.1.139`, `v2.1.170`, `v2.1.197`.
 
 > v2.1.121 is the first version captured here. Its `new_vars.txt` /
 > `removed_vars.txt` are the delta against the prose documentation that preceded

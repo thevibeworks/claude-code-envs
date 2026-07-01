@@ -34,9 +34,15 @@ for f in "$prev_file" "$cur_file"; do
   [[ -f "$f" ]] || { echo "ERROR: missing $f" >&2; exit 1; }
 done
 
+# Directory args may carry the human-readable "v" prefix (extractions/v2.1.170/),
+# but validate-extraction.sh's SUMMARY.md count check matches diff filenames
+# against a bare `new_vs_[0-9.]+\.txt` pattern — so the filename suffix must
+# never include "v", even when the directory name does.
+prev_bare="${prev#v}"
+
 out="$ROOT/extractions/$version"
-new_file="$out/new_vs_${prev}.txt"
-removed_file="$out/removed_vs_${prev}.txt"
+new_file="$out/new_vs_${prev_bare}.txt"
+removed_file="$out/removed_vs_${prev_bare}.txt"
 
 prev_sorted="$(mktemp)"; cur_sorted="$(mktemp)"
 trap 'rm -f "$prev_sorted" "$cur_sorted"' EXIT
