@@ -115,6 +115,22 @@ if [[ -d "$HELD_DIR" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# (g) no unrepaired concatenation artifacts
+# ---------------------------------------------------------------------------
+# An UPPER_SNAKE run butted straight against lowercase means the extractor read
+# past the end of a name (BUN_ENVprocess). Legitimate mixed-case Windows vars
+# (ProgramData, ConEmuANSI) have a single leading capital and do not match.
+# normalize-artifacts.sh should have repaired these; this is the safety net.
+artifact_hits="$(grep -hE '^[A-Z][A-Z0-9_]*[A-Z0-9][a-z]' "$dir"/all_vars.txt 2>/dev/null || true)"
+if [[ -n "$artifact_hits" ]]; then
+  gate_fail g "unrepaired concatenation artifact in all_vars.txt:"
+  note "run: scripts/normalize-artifacts.sh $version <prev>"
+  printf '%s\n' "$artifact_hits" >&2
+else
+  gate_ok g "no concatenation artifacts"
+fi
+
+# ---------------------------------------------------------------------------
 # (d) SUMMARY counts match raw line counts
 # ---------------------------------------------------------------------------
 summary="$dir/SUMMARY.md"

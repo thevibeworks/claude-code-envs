@@ -92,6 +92,10 @@ jobs:
         if: steps.gate.outputs.already_done == 'false'
         run: scripts/extract-binary.sh "${{ steps.unpack.outputs.artifact }}" "v${{ steps.resolve.outputs.version }}"
 
+      - name: Normalize concatenation artifacts
+        if: steps.gate.outputs.already_done == 'false'
+        run: scripts/normalize-artifacts.sh "v${{ steps.resolve.outputs.version }}" "v${{ steps.resolve.outputs.prev }}"
+
       - name: Hold unreleased codenames (FLAGGED.md policy)
         if: steps.gate.outputs.already_done == 'false'
         run: scripts/hold-unreleased.sh "v${{ steps.resolve.outputs.version }}"
