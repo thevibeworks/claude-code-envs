@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write        # create a branch
   pull-requests: write   # open the PR
+  issues: write          # ci-alert.sh tracking issue (one, auto-closed)
 
 concurrency:
   group: deterministic-extract
@@ -91,9 +92,17 @@ jobs:
         if: steps.gate.outputs.already_done == 'false'
         run: scripts/extract-binary.sh "${{ steps.unpack.outputs.artifact }}" "v${{ steps.resolve.outputs.version }}"
 
+      - name: Hold unreleased codenames (FLAGGED.md policy)
+        if: steps.gate.outputs.already_done == 'false'
+        run: scripts/hold-unreleased.sh "v${{ steps.resolve.outputs.version }}"
+
       - name: Compare against previous
         if: steps.gate.outputs.already_done == 'false'
         run: scripts/compare-release.sh "v${{ steps.resolve.outputs.prev }}" "v${{ steps.resolve.outputs.version }}"
+
+      - name: Write SUMMARY scaffold
+        if: steps.gate.outputs.already_done == 'false'
+        run: scripts/summary-scaffold.sh "v${{ steps.resolve.outputs.prev }}" "v${{ steps.resolve.outputs.version }}"
 
       - name: Validate (blocks on any gate failure)
         if: steps.gate.outputs.already_done == 'false'
@@ -116,9 +125,24 @@ jobs:
             size). The release artifact is not committed; only text extractions
             are included.
 
-            Review `extractions/v${{ steps.resolve.outputs.version }}/SUMMARY.md`
-            and check `FLAGGED.md` if any items were held.
+            `SUMMARY.md` is generated as a scaffold: the counts table is filled
+            in and gate-checked, the `Notable Additions` / `Notable Removals`
+            sections are marked `TODO(review)` and want a human pass before
+            merge. Check `FLAGGED.md` if any items were held.
           add-paths: |
             extractions/
             FLAGGED.md
             README.md
+
+      # Tripwire: this workflow failed eight weeks running with no signal.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci-alert.sh open "${{ github.run_id }}"
+
+      - name: Clear alert on success
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci-alert.sh close

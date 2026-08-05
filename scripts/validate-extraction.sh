@@ -25,6 +25,8 @@ set -euo pipefail
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/codenames.sh
+source "$ROOT/scripts/codenames.sh"
 
 version="${1:-}"
 [[ -n "$version" ]] || { echo "usage: $0 <version>" >&2; exit 2; }
@@ -87,25 +89,21 @@ fi
 # DISABLE_PROMPT_CACHING / CUSTOM_MODEL config string whose codename is NOT in
 # the allowlist is treated as unreleased and must not ship publicly.
 #
-# Allowlist codenames: opus, sonnet, haiku, fable (fable-5). The CUSTOM_MODEL
-# and numeric VERTEX_REGION strings carry no codename and are always allowed.
-PUBLIC_CODENAMES='OPUS|SONNET|HAIKU|FABLE'
-
-# Scan every tracked file EXCEPT the flagged hold file. Look at config-shaped
-# tokens and reject any codename token not in the allowlist.
+# The allowlist and the matching rules live in scripts/codenames.sh, shared with
+# hold-unreleased.sh. This gate is the safety net: hold-unreleased.sh should
+# already have moved these into _held/, so a hit here means the hold step was
+# skipped or the two disagreed.
 codename_hits=""
 for f in "$dir"/*.txt "$dir"/*.md; do
   [[ -e "$f" ]] || continue
-  # Pull config keys, drop the allowed ones, see what remains.
-  hit="$(grep -oE '(ANTHROPIC_DEFAULT_[A-Z0-9_]*MODEL[A-Z0-9_]*|DISABLE_PROMPT_CACHING_[A-Z0-9_]+|VERTEX_REGION_CLAUDE_[A-Z0-9_]+)' "$f" 2>/dev/null \
-      | grep -vE "(${PUBLIC_CODENAMES})" \
-      | grep -vE 'CUSTOM_MODEL|VERTEX_REGION_CLAUDE_[0-9]' || true)"
+  hit="$(held_tokens "$f")"
   if [[ -n "$hit" ]]; then
     codename_hits+="$f:"$'\n'"$hit"$'\n'
   fi
 done
 if [[ -n "$codename_hits" ]]; then
   gate_fail c "unreleased codename in public artifact (allowlist: opus/sonnet/haiku/fable-5):"
+  note "run: scripts/hold-unreleased.sh $version"
   printf '%s' "$codename_hits" >&2
 else
   gate_ok c "no unreleased codenames in public artifacts"
