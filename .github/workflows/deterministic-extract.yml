@@ -35,7 +35,7 @@ jobs:
           node-version: "20"
 
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y binutils
+        run: sudo apt-get update && sudo apt-get install -y binutils python3
 
       - name: Resolve target version
         id: resolve

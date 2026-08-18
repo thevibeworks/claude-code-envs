@@ -3,7 +3,10 @@
 Source: `@anthropic-ai/claude-code-linux-x64@2.1.197`, documented from string
 literals in the published release artifact.
 
-- `all_vars.txt` — `process.env.<NAME>` reads, `LC_ALL=C sort -u`.
+- `all_vars.txt` — every environment variable the release reads:
+  `registry.txt` ∪ `direct_reads.txt`, `LC_ALL=C sort -u`.
+- `registry.tsv` / `registry.txt` — the typed registry (672 published entries).
+- `direct_reads.txt` — literal `process.env.<NAME>` reads (655).
 - `model_provider_env_strings.txt` — model/provider configuration keys that
   appear as static allowlist strings rather than direct `process.env` reads.
 
@@ -18,9 +21,18 @@ counts below.
 
 | Metric | Value |
 |--------|-------|
-| Total vars (`all_vars.txt`) | 655 |
-| Added | 22 |
-| Removed | 7 |
+| Total vars (`all_vars.txt`) | 851 |
+| Added | 68 |
+| Removed | 9 |
+
+> **Re-measured (method correction).** This release declares its environment
+> variables in a typed registry read through a proxy object, so the original
+> `process.env.`-only extraction undercounted it and produced phantom
+> "removed" entries. The counts below come from
+> `scripts/extract-registry.py` ∪ `scripts/extract-direct-reads.py`.
+> `../v2.1.234/SUMMARY.md` carries the old and new numbers side by side and
+> explains the method.
+
 
 ## Notable Additions
 
