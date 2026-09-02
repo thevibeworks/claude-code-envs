@@ -11,10 +11,14 @@
 # labelled `ci-failure` — opened on the first failure, commented on for each
 # subsequent one, and closed automatically by the next green run.
 #
-# Deliberately bounded at one open issue. Dedup uses the REST issue list
-# filtered by label, never the search API: search indexing lags writes by
-# minutes, which is how a sibling repo once filed byte-identical duplicates
-# 13 seconds apart.
+# Deliberately bounded at one open issue. Dedup never uses the search API:
+# its index lags writes by minutes, which is how a sibling repo once filed
+# byte-identical duplicates 13 seconds apart. The REST list lags a write
+# too, by a few seconds and unevenly (measured in claude-reads-hn on
+# 2026-09-02: two opens one second apart made two issues, with or without
+# the label filter). So: match on title OR label over the plain open-issues
+# list, and before creating, poll for up to 15 s. Runs are a week apart, so
+# the wait costs nothing on the path that matters.
 #
 # Adds no secrets — uses the built-in GITHUB_TOKEN via GH_TOKEN.
 set -euo pipefail
@@ -26,7 +30,8 @@ TITLE="deterministic-extract is failing"
 action="${1:-}"
 
 existing() {
-  gh api "repos/$REPO/issues?state=open&labels=$LABEL&per_page=1" -q '.[0].number // empty'
+  gh api "repos/$REPO/issues?state=open&per_page=100" \
+    -q "[.[] | select(.pull_request == null) | select(.title == \"$TITLE\" or any(.labels[]?; .name == \"$LABEL\"))] | .[0].number // empty"
 }
 
 case "$action" in
@@ -34,6 +39,11 @@ case "$action" in
     run_id="${2:?usage: $0 open <run-id>}"
     run_url="https://github.com/$REPO/actions/runs/$run_id"
     num="$(existing)"
+    for _ in 1 2 3 4 5; do
+      [[ -n "$num" ]] && break
+      sleep 3
+      num="$(existing)"
+    done
     if [[ -n "$num" ]]; then
       gh api "repos/$REPO/issues/$num/comments" -f body="Still failing: $run_url" >/dev/null
       echo "ci-alert: commented on existing #$num" >&2
