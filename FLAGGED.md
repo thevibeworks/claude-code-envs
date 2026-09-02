@@ -31,10 +31,15 @@ artifacts:
 
 ## How this is enforced
 
-`scripts/validate-extraction.sh` gate (c) fails loudly and exits non-zero if any
-codename outside the public allowlist (`opus`, `sonnet`, `haiku`, `fable`)
-appears in a published artifact. Held evidence lives only in the gitignored
-`_held/` directory, which is never published or scanned.
+Two layers, so the policy is applied rather than remembered:
+
+- `scripts/extract-binary.sh` moves any config string keyed on a codename
+  outside the allowlist into `_held/unreleased_codenames.txt` and strips it from
+  every published artifact, as part of the extraction itself.
+- `scripts/validate-extraction.sh` gate (c) then fails loudly and exits non-zero
+  if such a codename reached a published artifact anyway. Held evidence lives
+  only in the gitignored `_held/` directory, which is never published or
+  scanned.
 
 ## Decision needed
 

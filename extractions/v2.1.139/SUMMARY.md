@@ -5,6 +5,11 @@ literals in the published release artifact.
 
 `all_vars.txt` holds the `process.env.<NAME>` reads, `LC_ALL=C sort -u`.
 
+This build predates the typed env registry introduced around v2.1.170, so
+every read is a literal `process.env.<NAME>` and `all_vars.txt` ==
+`direct_reads.txt`. `registry.txt` is absent here by design; the shared
+pipeline emits the same file set for every version.
+
 ## Counts (vs v2.1.121)
 
 | Metric | Value |
