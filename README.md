@@ -11,8 +11,13 @@ models, providers, transports, feature flags, and runtime behavior. This
 repository documents which variables each published release reads, and how that
 set changes from version to version.
 
-The latest documented release, **v2.1.197**, reads **655** environment
-variables.
+The latest trustworthy count is **v2.1.197: 655** environment variables.
+
+> **Extraction is paused** ([#18](../../issues/18)). From v2.1.218 on, Claude
+> Code reads many variables through an env registry rather than
+> `process.env.<NAME>` literals, and the current method misses them. The
+> v2.1.218 (538) and v2.1.222 (539) extractions below are lower bounds: 122 of
+> the 126 names v2.1.218 lists as removed still appear in the v2.1.296 binary.
 
 ## What this is
 
@@ -46,7 +51,8 @@ scripts/
 FLAGGED.md                        items held out of public artifacts and why
 ```
 
-Versions tracked: `v2.1.121`, `v2.1.139`, `v2.1.170`, `v2.1.197`.
+Versions tracked: `v2.1.121`, `v2.1.139`, `v2.1.170`, `v2.1.197`, and
+`v2.1.218`, `v2.1.222` (undercounted; see #18).
 
 > v2.1.121 is the first version captured here. Its `new_vars.txt` /
 > `removed_vars.txt` are the delta against the prose documentation that preceded
